@@ -1,0 +1,116 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+
+    "sqlServerName": "[toLower(resourceGroup().name)]",
+    "sqlDatabaseName": "BlueSky",
+    "sqlCollation": "SQL_Latin1_General_CP1_CI_AS",
+    "sqlDbEdition": "Basic",
+    "sqlMaxSizeBytes": "1073741824",
+    "sqlRequestedServiceObjectiveName": "Basic",
+    "sqlUser": "foo",
+    "sqlPassword": "foo",
+
+    "webHostingPlanName": "[resourceGroup().name]",
+    "webSiteName": "[resourceGroup().name]",
+    "webSku": "Free",
+    "webWorkerSize": "0"
+  },
+  "resources": [
+    {
+      "name": "[variables('sqlServerName')]",
+      "type": "Microsoft.Sql/servers",
+      "location": "[variables('location')]",
+      "tags": {
+        "displayName": "SqlServer"
+      },
+      "apiVersion": "2014-04-01-preview",
+      "properties": {
+        "administratorLogin": "[variables('sqlUser')]",
+        "administratorLoginPassword": "[variables('sqlPassword')]",
+        "version": "12.0"
+      },
+      "resources": [
+        {
+          "name": "[variables('sqlDatabaseName')]",
+          "type": "databases",
+          "location": "[variables('location')]",
+          "tags": {
+            "displayName": "Database"
+          },
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat('Microsoft.Sql/servers/', variables('sqlServerName'))]"
+          ],
+          "properties": {
+            "edition": "[variables('sqlDbEdition')]",
+            "collation": "[variables('sqlCollation')]",
+            "maxSizeBytes": "[variables('sqlMaxSizeBytes')]",
+            "requestedServiceObjectiveName": "[variables('sqlRequestedServiceObjectiveName')]"
+          }
+        },
+        {
+          "type": "firewallrules",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat('Microsoft.Sql/servers/', variables('sqlServerName'))]"
+          ],
+          "location": "[variables('location')]",
+          "name": "AllowAllAzureIps",
+          "properties": {
+            "endIpAddress": "0.0.0.0",
+            "startIpAddress": "0.0.0.0"
+          }
+        }
+      ]
+    },
+    {
+      "apiVersion": "2014-06-01",
+      "name": "[variables('webHostingPlanName')]",
+      "type": "Microsoft.Web/serverfarms",
+      "location": "[variables('location')]",
+      "tags": {
+        "displayName": "HostingPlan"
+      },
+      "properties": {
+        "name": "[variables('webHostingPlanName')]",
+        "sku": "[variables('webSku')]",
+        "workerSize": "[variables('webWorkerSize')]",
+        "numberOfWorkers": 1
+      }
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "name": "[variables('webSiteName')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[variables('location')]",
+      "dependsOn": [ "[concat('Microsoft.Web/serverFarms/', variables('webHostingPlanName'))]" ],
+      "tags": {
+        "[concat('hidden-related:', resourceGroup().id, '/providers/Microsoft.Web/serverfarms/', variables('webHostingPlanName'))]": "empty",
+        "displayName": "Website"
+      },
+      "properties": {
+        "name": "[variables('webSiteName')]",
+        "serverFarmId": "[variables('webHostingPlanName')]"
+      },
+      "resources": [
+        {
+          "apiVersion": "2015-08-01",
+          "type": "config",
+          "name": "connectionstrings",
+          "dependsOn": [ "[concat('Microsoft.Web/sites/', variables('webSiteName'))]" ],
+          "properties": {
+            "BlueSkyContext": {
+              "value": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('sqlServerName'))).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('sqlDatabaseName'), ';User Id=', variables('sqlUser'), '@', variables('sqlServerName'), ';Password=', variables('sqlPassword'), ';')]",
+              "type": "SQLAzure"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
