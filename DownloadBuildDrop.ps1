@@ -10,9 +10,9 @@ Add-Type -assembly “system.io.compression.filesystem”
 
 $headers = @{Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"}
 
-$accountName = [System.Web.HttpUtility]::UrlPathEncode("accountName")
+$accountName = [System.Web.HttpUtility]::UrlPathEncode($accountName)
 $tfsCollection = [System.Web.HttpUtility]::UrlPathEncode("DefaultCollection")
-$teamProject = [System.Web.HttpUtility]::UrlPathEncode("teamProject")
+$teamProject = [System.Web.HttpUtility]::UrlPathEncode($teamProject)
 $restUrl = "https://$accountName.visualstudio.com/$tfsCollection/$teamProject/_apis/build/definitions?api-version=2.0"
 
 Write-Output "Executing REST API: $restUrl"
